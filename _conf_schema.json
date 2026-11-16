@@ -1,0 +1,190 @@
+{
+  "enabled": {
+    "type": "bool",
+    "description": "仅启用指定源的HTTP头与提示词首句适配",
+    "default": true
+  },
+  "source_ids": {
+    "type": "list",
+    "description": "精确供应商源ID白名单，仅gemini-模型生效",
+    "default": [
+      "反重力哈基米"
+    ]
+  },
+  "rewrite_system_prefix": {
+    "type": "string",
+    "description": "系统提示词最前面补的中性首句，留空或填off则只改头不改提示词",
+    "default": ""
+  },
+  "neutralize_factory": {
+    "type": "bool",
+    "description": "把出厂英文提示词段换成中文（规避上游假429），工具名保持不变",
+    "default": true
+  },
+  "custom_headers": {
+    "type": "text",
+    "description": "附加非鉴权请求头JSON对象，默认空对象",
+    "default": "{}"
+  },
+  "drop_tools": {
+    "type": "bool",
+    "description": "是否连工具定义一起摘掉（会失去工具能力，默认关闭）",
+    "default": false
+  },
+  "scrub_markers": {
+    "type": "bool",
+    "description": "去掉每轮注入的<system_reminder>环境块和AstrBot字样",
+    "default": true
+  },
+  "alias_tools": {
+    "type": "bool",
+    "description": "工具名去掉 astrbot_ 前缀，回包时还原，徒增延迟，默认关",
+    "default": false
+  },
+  "scrub_brand": {
+    "type": "bool",
+    "description": "连AstrBot字样也换成Assistant，注意会改写路径，默认关",
+    "default": false
+  },
+  "tool_whitelist": {
+    "type": "list",
+    "description": "只发这些工具，留空则全发，留空才能用上全部插件",
+    "default": []
+  },
+  "legacy_enabled": {
+    "type": "bool",
+    "description": "保留旧Gemini配置作为后备，自定义规则优先",
+    "default": true
+  },
+  "profiles": {
+    "type": "template_list",
+    "description": "自定义模型规则（添加后展开配置）",
+    "hint": "自定义规则优先于旧Gemini配置；每次只使用第一条匹配规则。",
+    "default": [],
+    "templates": {
+      "custom": {
+        "name": "自定义规则",
+        "items": {
+          "name": {
+            "type": "string",
+            "description": "规则名称",
+            "default": "自定义规则"
+          },
+          "enabled": {
+            "type": "bool",
+            "description": "启用此规则",
+            "default": true
+          },
+          "source_ids": {
+            "type": "list",
+            "description": "精确源ID或提供者ID，必填，空列表不匹配任何源",
+            "default": []
+          },
+          "models": {
+            "type": "list",
+            "description": "模型匹配，支持通配符，按列表顺序首条命中生效",
+            "default": [
+              "*"
+            ]
+          },
+          "rewrite_system_prefix": {
+            "type": "text",
+            "description": "系统提示词前缀，留空不添加",
+            "default": ""
+          },
+          "neutralize_factory": {
+            "type": "bool",
+            "description": "把出厂英文提示词段换成中文（规避上游假429），工具名保持不变",
+            "default": true
+          },
+          "text_replacements": {
+            "type": "text",
+            "description": "文本替换JSON数组；替换为空字符串即过滤。仅改正文，不改工具参数或定义",
+            "default": "[]",
+            "hint": "例如 [{\"find\":\"待替换内容\",\"replace\":\"新内容\"}]"
+          },
+          "custom_headers": {
+            "type": "text",
+            "description": "附加非鉴权请求头JSON对象，默认空对象",
+            "default": "{}"
+          },
+          "scrub_markers": {
+            "type": "bool",
+            "description": "去掉每轮注入的<system_reminder>环境块和AstrBot字样",
+            "default": false
+          },
+          "alias_tools": {
+            "type": "bool",
+            "description": "工具名去掉 astrbot_ 前缀，回包时自动还原",
+            "default": false
+          },
+          "scrub_brand": {
+            "type": "bool",
+            "description": "连AstrBot字样也换成Assistant，注意会改写路径，默认关",
+            "default": false
+          },
+          "flatten_mode": {
+            "type": "bool",
+            "description": "把 Responses 正文拍平：system 并进 input，去掉 instructions",
+            "default": false
+          },
+          "slim_system": {
+            "type": "bool",
+            "description": "把系统提示词里的框架样板剪掉，只留人格和世界书",
+            "default": false
+          }
+        }
+      }
+    }
+  },
+  "flatten_mode": {
+    "type": "bool",
+    "description": "把多模态正文拍平成纯文本，会把图片消息弄坏，默认关，别开",
+    "default": false
+  },
+  "slim_system": {
+    "type": "bool",
+    "description": "把系统提示词里的框架样板剪掉，只留人格和世界书",
+    "default": false
+  },
+  "prompt_zh_enabled": {
+    "type": "bool",
+    "description": "出厂英文提示词中文化总开关。上游过滤那句英文枚举，中文版不触发，假 429 消失",
+    "default": true
+  },
+  "prompt_zh_all_providers": {
+    "type": "bool",
+    "description": "对所有提供商生效。默认只改 source_ids 指定的源",
+    "default": false
+  },
+  "prompt_zh_shell": {
+    "type": "text",
+    "description": "本地 shell 会话提示词。填 auto 会在运行时按当前系统生成：Windows 分 PowerShell 5.1 与 7，Linux/macOS 用 POSIX 说明（推荐）。也可自填文本，支持 {os} 与 {shell_hint} 占位符；必须保留 astrbot_shell_session 与 write_line 两个工具名。",
+    "default": "auto"
+  },
+  "prompt_zh_workspace": {
+    "type": "text",
+    "description": "工作区提示词，等义翻译自出厂原文，保留 {workspace} 占位符",
+    "default": "当前工作区：`{workspace}`。`astrbot_execute_shell` 与 `astrbot_execute_python` 以它为工作目录。`astrbot_file_read_tool`、`astrbot_file_write_tool`、`astrbot_file_edit_tool` 与 `astrbot_grep_tool` 以它为基准解析相对路径。优先使用工作区内的相对路径；不要假定其他工具也如此。"
+  },
+  "prompt_zh_workspace_path": {
+    "type": "string",
+    "description": "工作区路径覆盖。留空则沿用框架自动生成的路径",
+    "default": ""
+  },
+  "prompt_zh_sandbox": {
+    "type": "text",
+    "description": "沙盒能力声明，是出厂原文的等义翻译",
+    "default": "我可以使用一个沙盒环境，能够安全地执行 shell 命令和 Python 代码。"
+  },
+  "prompt_zh_toolcall": {
+    "type": "text",
+    "description": "工具调用规范（完整参数模式），等义翻译自出厂 TOOL_CALL_PROMPT",
+    "default": "使用工具时：绝不返回空回复；在开始一类新任务时简要说明目的，但不必在每次工具调用前都说明；严格遵循工具的参数定义，不臆造参数；保持对话风格一致。"
+  },
+  "prompt_zh_toolcall_skills": {
+    "type": "text",
+    "description": "工具调用规范（技能分步模式），等义翻译自出厂 TOOL_CALL_PROMPT_SKILLS_LIKE_MODE",
+    "default": "我绝不返回空回复，尤其是在调用工具之后。在调用任何工具之前，先给用户一句简短的说明，讲清这次调用的目的。工具的参数定义分两步下发：先只给名称与描述；我决定使用某个工具后，完整参数定义会在下一步给出。在看到参数定义之前，不要猜参数。工具调用完成后，必须把工具返回的结果向用户简要总结。整段对话中保持角色扮演与风格一致。"
+  }
+}
