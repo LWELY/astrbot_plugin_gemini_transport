@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>哈基咪等模型假报错转换</title>
+<style>
+  :root {
+    --pink-1: #ffe9f2; --pink-2: #ffd5e6; --ink: #7a2b4c; --ink-2: #a92358;
+    --line: rgba(255,150,195,.5);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(255,255,255,.85) 0%, rgba(255,255,255,0) 45%),
+      radial-gradient(circle at 88% 92%, rgba(255,190,215,.9) 0%, rgba(255,190,215,0) 50%),
+      linear-gradient(160deg, #ffeaf3 0%, #ffd9e8 32%, #ffc7dd 62%, #ffb6d2 100%);
+    background-attachment: fixed;
+    color: var(--ink); padding: 22px 18px 60px; line-height: 1.5; min-height: 100vh;
+  }
+  .hearts { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .heart {
+    position: absolute; bottom: -8vh; color: rgba(255,105,160,.55);
+    text-shadow: 0 0 8px rgba(255,255,255,.8);
+    animation-name: floatUp; animation-timing-function: ease-in; animation-iteration-count: infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes floatUp {
+    0%   { transform: translate3d(0,0,0) scale(.55) rotate(-12deg); opacity: 0; }
+    12%  { opacity: .95; }
+    50%  { transform: translate3d(14px,-55vh,0) scale(.95) rotate(10deg); }
+    100% { transform: translate3d(-10px,-118vh,0) scale(1.15) rotate(26deg); opacity: 0; }
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1020px; margin: 0 auto; }
+  h1 { font-size: 19px; margin: 0 0 6px; color: var(--ink-2); }
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px;
+    border-radius: 999px; background: rgba(255,255,255,.8); border: 1px solid var(--line);
+    color: var(--ink-2); vertical-align: 3px; margin-left: 6px;
+  }
+  .desc { font-size: 12.5px; color: rgba(122,43,76,.8); margin: 0 0 16px; }
+
+  /* 第一行：状态条 */
+  .topbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 11px 14px; border-radius: 16px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.72); margin-bottom: 14px;
+  }
+  .stat { font-size: 12.5px; color: rgba(122,43,76,.85); }
+  .stat b { color: var(--ink-2); font-weight: 700; }
+  .spacer { margin-left: auto; }
+
+  button {
+    font: inherit; font-size: 12.5px; padding: 7px 14px; border-radius: 11px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.9);
+    color: var(--ink-2); cursor: pointer; transition: .15s;
+  }
+  button:hover { background: #fff; box-shadow: 0 4px 12px rgba(255,120,170,.25); }
+  button.main {
+    background: linear-gradient(90deg, #ff9dc4, #ff5f9e); color: #fff; border-color: transparent;
+  }
+  button.main:hover { filter: brightness(1.03); }
+  button.tiny { padding: 4px 10px; font-size: 11.5px; }
+  button.ghost { background: rgba(255,255,255,.6); }
+  button.del { color: #b3261e; border-color: rgba(179,38,30,.35); }
+
+  /* 第二行：模型供应者 */
+  .provsec {
+    border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.72);
+    margin-bottom: 18px; overflow: hidden;
+  }
+  .sec-head {
+    display: flex; align-items: center; gap: 8px; padding: 11px 14px;
+    font-size: 13px; font-weight: 700; color: var(--ink-2); cursor: pointer;
+  }
+  .sec-head:hover { background: rgba(255,255,255,.5); }
+  .caret { margin-left: auto; font-size: 11.5px; font-weight: 600; color: rgba(122,43,76,.7); }
+  .provbody { padding: 0 14px 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11.5px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: rgba(255,255,255,.85); color: var(--ink-2);
+  }
+  .chip.on { background: linear-gradient(90deg,#ff9dc4,#ff5f9e); color: #fff; border-color: transparent; }
+
+  h3 { font-size: 13.5px; margin: 18px 0 10px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+  h3::before { content: "\2665"; font-size: 11px; color: #ff6fa8; text-shadow: 0 0 8px rgba(255,140,185,.9); }
+
+  /* 第五行：模型卡 */
+  .cards { display: flex; flex-direction: column; gap: 12px; }
+  .mcard {
+    border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,.78);
+    overflow: hidden;
+  }
+  .mcard.open { background: rgba(255,255,255,.92); }
+  .mhead {
+    display: flex; align-items: center; gap: 10px; padding: 12px 15px; cursor: pointer;
+  }
+  .mhead:hover { background: rgba(255,255,255,.55); }
+  .mtitle { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+  .badge {
+    font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    background: rgba(255,150,195,.28); color: #a92358;
+  }
+  .badge.off { background: rgba(150,150,150,.22); color: #7a5a68; }
+  .mbody { display: none; padding: 4px 15px 16px; }
+  .mcard.open .mbody { display: block; }
+
+  .sect { border-top: 1px dashed rgba(255,140,185,.4); padding-top: 12px; margin-top: 12px; }
+  .sect:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+  .sect-t { font-size: 12px; font-weight: 700; color: #c2286a; margin-bottom: 9px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .grid.one { grid-template-columns: 1fr; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field.wide { grid-column: 1 / -1; }
+  .field .label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .field input[type=text], .field textarea {
+    width: 100%; font-size: 12px; padding: 8px 11px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.95);
+    color: var(--ink); outline: none; font-family: inherit; line-height: 1.55;
+  }
+  .subfield { display: flex; flex-direction: column; gap: 5px; margin-top: 4px;
+    border-top: 1px dashed rgba(255,140,185,.45); padding-top: 8px; }
+  .subfield .label { font-size: 11.5px; }
+  .subfield input[type=text] {
+    width: 100%; font-size: 12px; padding: 7px 11px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.95); color: var(--ink); outline: none;
+  }
+  .field textarea { min-height: 92px; height: 92px; resize: vertical; }
+  .field input:focus, .field textarea:focus { outline: 2px solid rgba(255,140,185,.55); }
+  .rowplain { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; }
+  .hint { font-size: 11px; color: rgba(122,43,76,.66); }
+
+  .opt { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 12.5px; }
+  .opt .txt { flex: 1; min-width: 0; }
+  .opt .txt em { display: block; font-style: normal; font-size: 11px; color: rgba(122,43,76,.66); }
+
+  .switch { position: relative; display: inline-block; flex: 0 0 42px; width: 42px; height: 23px; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+  .switch .slider {
+    position: absolute; inset: 0; background: rgba(200,170,185,.55); border-radius: 999px;
+    transition: .2s; cursor: pointer;
+  }
+  .switch .slider::before {
+    content: ""; position: absolute; width: 17px; height: 17px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .switch input:checked + .slider { background: linear-gradient(90deg,#ff9dc4,#ff5f9e); }
+  .switch input:checked + .slider::before { transform: translateX(19px); }
+
+  .status-text { font-size: 12px; color: #c22a68; }
+  .toast-layer { position: fixed; bottom: 18px; right: 18px; z-index: 5; pointer-events: none; }
+  .toast {
+    opacity: 0; transform: translateY(8px); transition: .22s; font-size: 12.5px;
+    padding: 9px 15px; border-radius: 12px; color: #fff;
+    background: linear-gradient(90deg,#ff9dc4,#ff5f9e); box-shadow: 0 6px 18px rgba(255,95,158,.35);
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="hearts" id="hearts"></div>
+
+<div class="wrap">
+  <h1>哈基咪等模型假报错转换 <span class="pill" id="ver">v0.11.6</span></h1>
+  <p class="desc">本插件主攻哈基咪（Gemini）系模型：把出厂英文提示词换成等义中文，绕开中转站的假 429，同时清洗指纹请求头，多模态与全部工具照常。其它模型也能用，但它本来是为 Gemini 做的。</p>
+
+  <div class="topbar">
+    <span class="stat">钩子 <b id="hookCount">-</b></span>
+    <button id="add" class="main">添加新模型</button>
+    <span class="stat">上次同步 <b id="lastSync">-</b></span>
+    <span class="stat">跳过的源 <b id="skippedCount">-</b></span>
+    <span class="spacer"></span>
+    <span class="status-text" id="status">正在看一眼…</span>
+  </div>
+
+  <div class="provsec">
+    <div class="sec-head" id="provHead">模型供应者 <span class="badge" id="provCount">读取中</span><span class="caret" id="provCaret">展开</span></div>
+    <div class="provbody" id="provWrap" hidden><div class="chips" id="providers"></div></div>
+  </div>
+
+  <h3>钩子模型</h3>
+  <div class="rowplain">
+    <button id="add2" class="main">添加一个自定义模型</button>
+    <button id="save" class="ghost">保存生效</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+</div>
+
+<div class="toast-layer"><div class="toast" id="toast">已同步</div></div>
+
+<script>
+(function () {
+  const layer = document.getElementById('hearts');
+  if (!layer) return;
+  const glyphs = ['\u2665', '\u2661', '\u2764', '\u2665'];
+  const tints = ['rgba(255,95,158,.55)', 'rgba(255,130,175,.5)', 'rgba(240,80,140,.45)', 'rgba(255,170,205,.65)'];
+  for (let i = 0; i < 24; i++) {
+    const s = document.createElement('span');
+    s.className = 'heart';
+    s.textContent = glyphs[i % glyphs.length];
+    s.style.left = (Math.random() * 98) + '%';
+    s.style.fontSize = (11 + Math.random() * 17).toFixed(1) + 'px';
+    s.style.color = tints[i % tints.length];
+    s.style.animationDuration = (13 + Math.random() * 13).toFixed(1) + 's';
+    s.style.animationDelay = '-' + (Math.random() * 22).toFixed(1) + 's';
+    layer.appendChild(s);
+  }
+})();
+
+const $ = (id) => document.getElementById(id);
+let api = null;
+let draft = {};
+let rules = [];
+let providers = [];
+let picked = new Set();
+let openState = {};
+let promptDefaults = {};
+let toastTimer = null;
+
+const PROMPT_FIELDS = [
+  { key: 'prompt_zh_sandbox', label: '沙盒能力声明',
+    hint: '出厂 SANDBOX_MODE_PROMPT 的等义翻译，只说沙盒里能跑 shell 与 Python。' },
+  { key: 'prompt_zh_toolcall', label: '工具调用规范（完整参数）',
+    hint: '对应 TOOL_CALL_PROMPT，工具名和参数名别动。' },
+  { key: 'prompt_zh_toolcall_skills', label: '工具调用规范（技能分步）',
+    hint: '对应 TOOL_CALL_PROMPT_SKILLS_LIKE_MODE。' },
+  { key: 'prompt_zh_workspace', label: '工作区提示词',
+    hint: '必须保留 {workspace} 占位符。' },
+  { key: 'prompt_zh_workspace_path', label: '工作区路径覆盖', single: true,
+    hint: '留空就沿用框架自动生成的路径。' },
+  { key: 'prompt_zh_shell', label: '本地 shell 会话提示词',
+    hint: '填 auto 按系统自动生成，支持 {os} 与 {shell_hint}。' }
+];
+
+function status(text, isError) {
+  const el = $('status');
+  if (el) { el.textContent = text; el.style.color = isError ? '#b3261e' : '#c22a68'; }
+  const t = $('toast');
+  if (t) {
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+}
+
+async function waitApi() {
+  for (let i = 0; i < 80; i++) {
+    if (window.AstrBotPluginPage) return window.AstrBotPluginPage;
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  throw new Error('面板桥没加载出来，页面可能不在插件视图里');
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = text;
+  return n;
+}
+
+function splitList(value) {
+  return String(value || '').split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean);
+}
+
+function field(labelText, input, hintText, wide) {
+  const box = el('div', 'field' + (wide ? ' wide' : ''));
+  box.appendChild(el('div', 'label', labelText));
+  box.appendChild(input);
+  if (hintText) box.appendChild(el('div', 'hint', hintText));
+  return box;
+}
+
+function textInput(value, onInput, placeholder) {
+  const i = el('input');
+  i.type = 'text';
+  i.value = value || '';
+  if (placeholder) i.placeholder = placeholder;
+  i.addEventListener('input', () => onInput(i.value));
+  return i;
+}
+
+function textArea(value, onInput, rows) {
+  const t = document.createElement('textarea');
+  t.value = value || '';
+  t.rows = rows || 4;
+  t.addEventListener('input', () => onInput(t.value));
+  return t;
+}
+
+function toggle(value, onChange, title, note) {
+  const wrap = el('div', 'opt');
+  const txt = el('div', 'txt');
+  txt.appendChild(el('span', null, title));
+  if (note) txt.appendChild(el('em', null, note));
+  const sw = el('label', 'switch');
+  const cb = el('input');
+  cb.type = 'checkbox';
+  cb.checked = !!value;
+  cb.addEventListener('change', () => onChange(cb.checked));
+  sw.appendChild(cb);
+  sw.appendChild(el('span', 'slider'));
+  wrap.append(txt, sw);
+  return wrap;
+}
+
+function riskyToggle(value, onChange, title, note, danger) {
+  return toggle(value, (v) => {
+    if (v && !window.confirm(title + '\n\n' + note + '\n\n后果：' + danger + '\n\n确定要打开吗？')) {
+      renderAll();
+      return;
+    }
+    onChange(v);
+  }, title, note);
+}
+
+function autoGrow(ta) {
+  const fit = () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(Math.max(ta.scrollHeight + 6, 96), 420) + 'px';
+  };
+  ta.addEventListener('input', fit);
+  setTimeout(fit, 0);
+  return ta;
+}
+
+function promptGrid(values, onChange, inheritHint) {
+  const grid = el('div', 'grid one');
+  PROMPT_FIELDS.forEach((f) => {
+    if (f.key === 'prompt_zh_workspace_path') return;   // 并到工作区那一格里
+    const cur = values[f.key] || '';
+    const input = autoGrow(textArea(cur, (v) => onChange(f.key, v), 4));
+    const wide = false;
+    const box = field(f.label, input, inheritHint && !cur ? f.hint + ' ' + inheritHint : f.hint, wide);
+
+    if (f.key === 'prompt_zh_workspace') {
+      const sub = el('div', 'subfield');
+      sub.appendChild(el('div', 'label', '工作区路径覆盖'));
+      sub.appendChild(textInput(values.prompt_zh_workspace_path || '',
+        (v) => onChange('prompt_zh_workspace_path', v), '留空就用框架自动生成的路径'));
+      box.appendChild(sub);
+    }
+    grid.appendChild(box);
+  });
+  return grid;
+}
+
+/* ---------------- 卡片 ---------------- */
+
+function defaultCard() {
+  const card = el('div', 'mcard' + (openState.default ? ' open' : ''));
+  const head = el('div', 'mhead');
+  head.appendChild(el('div', 'mtitle', 'Gemini 模型'));
+  head.appendChild(el('span', 'badge', '默认选中'));
+  head.appendChild(el('span', 'spacer'));
+  const reset = el('button', 'ghost tiny', '恢复默认提示词');
+  reset.addEventListener('click', (e) => {
+    e.stopPropagation();
+    Object.keys(promptDefaults).forEach((k) => { draft[k] = promptDefaults[k]; });
+    renderAll();
+    status('提示词已恢复成默认值，记得点保存');
+  });
+  head.appendChild(reset);
+  head.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, label, textarea')) return;
+    card.classList.toggle('open');
+    openState.default = card.classList.contains('open');
+  });
+
+  const body = el('div', 'mbody');
+
+  const s1 = el('div', 'sect');
+  s1.appendChild(el('div', 'sect-t', '提示词'));
+  s1.appendChild(promptGrid(draft, (k, v) => { draft[k] = v; }));
+  s1.appendChild(el('div', 'hint', '这一份是 Gemini 的默认提示词，自定义模型留空时就用它。'));
+  body.appendChild(s1);
+
+  const s2 = el('div', 'sect');
+  s2.appendChild(el('div', 'sect-t', '匹配'));
+  const g2 = el('div', 'grid');
+  g2.appendChild(field('生效的源', textInput((draft.source_ids || []).join(', '),
+    (v) => { draft.source_ids = splitList(v); }, '反重力哈基米'), '按源名匹配，逗号分隔。', true));
+  g2.appendChild(field('模型前缀（写法：gemini-*）', textInput('gemini-*',
+    () => {}, 'gemini-*'),
+    '不能只写 gemini，要写 gemini-* 才算通配；星号代表后面任意字符，比如 gemini-*-flash、gemini-*pro* 都行。这一张固定只吃 gemini- 开头。', true));
+  s2.appendChild(g2);
+  body.appendChild(s2);
+
+  const s3 = el('div', 'sect');
+  s3.appendChild(el('div', 'sect-t', '开关'));
+  s3.appendChild(toggle(draft.prompt_zh_enabled !== false, (v) => { draft.prompt_zh_enabled = v; },
+    '中文化总开关', '关掉就原样放行英文提示词，上游可能又开始甩假 429。'));
+  s3.appendChild(toggle(!!draft.prompt_zh_all_providers, (v) => { draft.prompt_zh_all_providers = v; },
+    '对所有提供商生效', '默认只改上面指定的源。'));
+  s3.appendChild(toggle(draft.scrub_markers !== false, (v) => { draft.scrub_markers = v; },
+    '清掉框架环境块', '抹掉每轮注入的 system_reminder 与环境标记。'));
+  s3.appendChild(riskyToggle(!!draft.flatten_mode, (v) => { draft.flatten_mode = v; },
+    '把正文拍平（别开）', '备注：会把多模态正文拍成纯文本，图片结构直接丢。',
+    '带图的消息发不出去，上游反序列化失败。'));
+  s3.appendChild(riskyToggle(!!draft.drop_tools, (v) => { draft.drop_tools = v; },
+    '摘掉工具定义（别开）', '备注：摘了请求里就没有任何工具。',
+    'CAD、点歌、画图、网页抓取全部失效。'));
+  body.appendChild(s3);
+
+  card.append(head, body);
+  return card;
+}
+
+function ruleCard(rule, index) {
+  const card = el('div', 'mcard' + (openState['r' + index] ? ' open' : ''));
+  const head = el('div', 'mhead');
+  const title = el('div', 'mtitle', rule.name || ('新模型 ' + (index + 1)));
+  head.appendChild(title);
+  head.appendChild(el('span', 'badge' + (rule.enabled === false ? ' off' : ''),
+    rule.enabled === false ? '已停用' : (rule.models || ['*']).join(' ')));
+  head.appendChild(el('span', 'spacer'));
+
+  const del = el('button', 'del tiny', '删除');
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!window.confirm('删掉「' + (rule.name || ('新模型 ' + (index + 1))) + '」这张卡？')) return;
+    rules.splice(index, 1);
+    renderAll();
+  });
+  head.appendChild(del);
+
+  const sw = el('label', 'switch');
+  const cb = el('input');
+  cb.type = 'checkbox';
+  cb.checked = rule.enabled !== false;
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    rule.enabled = cb.checked;
+    renderAll();
+  });
+  sw.appendChild(cb);
+  sw.appendChild(el('span', 'slider'));
+  head.appendChild(sw);
+
+  head.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, label, textarea')) return;
+    card.classList.toggle('open');
+    openState['r' + index] = card.classList.contains('open');
+  });
+
+  const body = el('div', 'mbody');
+
+  const s0 = el('div', 'sect');
+  s0.appendChild(el('div', 'sect-t', '这张卡是谁'));
+  const g0 = el('div', 'grid');
+  g0.appendChild(field('名字', textInput(rule.name || '', (v) => { rule.name = v; }), '', true));
+  s0.appendChild(g0);
+  body.appendChild(s0);
+
+  const s1 = el('div', 'sect');
+  s1.appendChild(el('div', 'sect-t', '匹配'));
+  const g1 = el('div', 'grid');
+  g1.appendChild(field('源 ID', textInput((rule.source_ids || []).join(', '),
+    (v) => { rule.source_ids = splitList(v); }, '反重力哈基米'), '按源名匹配，逗号分隔。', true));
+  g1.appendChild(field('模型匹配（写法：gemini-*）', textInput((rule.models || ['*']).join(', '),
+    (v) => { rule.models = splitList(v).length ? splitList(v) : ['*']; }, 'gemini-* 或 *'),
+    '只写 gemini 匹配不到，要写成 gemini-*；星号代表任意字符。可以写多条，逗号分隔，比如 gemini-*, gemini-*-flash。只写 * 就是全部模型都要。', true));
+  s1.appendChild(g1);
+  body.appendChild(s1);
+
+  const s2 = el('div', 'sect');
+  s2.appendChild(el('div', 'sect-t', '提示词'));
+  s2.appendChild(promptGrid(rule.prompts || {}, (k, v) => {
+    rule.prompts = rule.prompts || {};
+    rule.prompts[k] = v;
+  }, '留空沿用 Gemini 默认提示词。'));
+  body.appendChild(s2);
+
+  const s3 = el('div', 'sect');
+  s3.appendChild(el('div', 'sect-t', '开关'));
+  s3.appendChild(toggle(rule.neutralize_factory !== false, (v) => { rule.neutralize_factory = v; },
+    '出厂英文段中文化', '把出厂英文提示词段换成中文，规避上游假 429。'));
+  s3.appendChild(toggle(!!rule.scrub_markers, (v) => { rule.scrub_markers = v; },
+    '清掉框架环境块', '抹掉 system_reminder 之类注入。'));
+  s3.appendChild(riskyToggle(!!rule.flatten_mode, (v) => { rule.flatten_mode = v; },
+    '把正文拍平（别开）', '备注：会弄坏带图的消息。', '图片消息直接发不出去。'));
+  s3.appendChild(riskyToggle(!!rule.drop_tools, (v) => { rule.drop_tools = v; },
+    '摘掉工具定义（别开）', '备注：摘了就没有工具能力。', '所有插件工具失效。'));
+  body.appendChild(s3);
+
+  card.append(head, body);
+  return card;
+}
+
+function renderAll() {
+  const box = $('cards');
+  box.replaceChildren();
+  box.appendChild(defaultCard());
+  rules.forEach((rule, i) => box.appendChild(ruleCard(rule, i)));
+}
+
+/* ---------------- 数据 ---------------- */
+
+function renderProviders() {
+  const box = $('providers');
+  box.replaceChildren();
+  $('provCount').textContent = providers.length + ' 个';
+  if (!providers.length) { box.appendChild(el('span', 'hint', '没读到提供者')); return; }
+  providers.forEach((p) => {
+    const chip = el('span', 'chip' + (picked.has(p.id) ? ' on' : ''), p.id);
+    chip.title = (p.api_base || '') + (p.hookable ? '（可挂钩子）' : '（不可挂钩子）');
+    chip.addEventListener('click', () => {
+      if (picked.has(p.id)) picked.delete(p.id); else picked.add(p.id);
+      chip.classList.toggle('on', picked.has(p.id));
+      status(picked.has(p.id) ? '选中 ' + p.id + '，加卡片时会带上' : '取消选中 ' + p.id);
+    });
+    box.appendChild(chip);
+  });
+}
+
+function normalizeRule(r) {
+  return Object.assign({}, r, {
+    name: r.name || '新模型',
+    enabled: r.enabled !== false,
+    source_ids: r.source_ids || [],
+    models: (r.models && r.models.length) ? r.models : ['*'],
+    prompts: r.prompts || {},
+    text_replacements: Array.isArray(r.text_replacements) ? r.text_replacements : []
+  });
+}
+
+async function load() {
+  const state = await api.apiGet('state');
+  const attached = state.attached || [];
+  providers = state.providers || [];
+  $('hookCount').textContent = attached.length + ' 个';
+  $('lastSync').textContent = state.synced_at || state.ts || '未同步';
+  $('skippedCount').textContent = (state.skipped || []).length + ' 个';
+
+  const conf = await api.apiGet('config');
+  draft = conf.config || {};
+  promptDefaults = {};
+  PROMPT_FIELDS.forEach((f) => { promptDefaults[f.key] = draft[f.key] || ''; });
+  rules = (Array.isArray(draft.profiles) ? draft.profiles : []).map(normalizeRule);
+
+  renderProviders();
+  renderAll();
+  status('读到了，' + providers.length + ' 个提供者，' + rules.length + ' 张自定义卡');
+}
+
+async function save() {
+  const btn = $('save');
+  btn.disabled = true;
+  status('正在保存…');
+  try {
+    draft.profiles = rules;
+    const res = await api.apiPost('save', draft);
+    if (res && res.success === false) throw new Error(res.message || '保存失败');
+    status('保存好了，钩子已重挂');
+    await load();
+  } catch (e) {
+    status('保存失败：' + (e.message || e), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function addRule() {
+  const chosen = Array.from(picked);
+  rules.push(normalizeRule({
+    name: '新模型 ' + (rules.length + 1),
+    enabled: true,
+    source_ids: chosen.length ? chosen : (providers.length ? [providers[0].id] : []),
+    models: ['*'],
+    prompts: {}
+  }));
+  openState['r' + (rules.length - 1)] = true;
+  renderAll();
+  status('加了一张卡，先把源和模型填好，提示词留空就沿用默认');
+}
+
+(async function boot() {
+  try {
+    api = await waitApi();
+    $('add').addEventListener('click', addRule);
+    $('add2').addEventListener('click', addRule);
+    $('save').addEventListener('click', save);
+    $('provHead').addEventListener('click', () => {
+      const wrap = $('provWrap');
+      wrap.hidden = !wrap.hidden;
+      $('provCaret').textContent = wrap.hidden ? '展开' : '收起';
+    });
+    await api.ready();
+    await load();
+
+  } catch (e) {
+    status('页面没起来：' + (e.message || e), true);
+  }
+})();
+</script>
+</body>
+</html>
