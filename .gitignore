@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# 插件运行时生成的脱敏快照，不入库
+last_request.json
+last_error.json
+attach_state.json
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
