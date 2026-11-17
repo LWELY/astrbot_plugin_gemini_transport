@@ -28,7 +28,7 @@ PROMPT_TEXT_KEYS = (
     "prompt_zh_workspace_path",
     "prompt_zh_shell",
 )
-PROMPT_BOOL_KEYS = ("prompt_zh_enabled", "prompt_zh_all_providers")
+PROMPT_BOOL_KEYS = ("prompt_zh_enabled", "prompt_zh_all_providers", "prompt_zh_tools", "prompt_zh_extra")
 PROMPT_DEFAULTS = {
     "prompt_zh_sandbox": DEFAULT_SANDBOX_CN,
     "prompt_zh_toolcall": DEFAULT_TOOLCALL_CN,
@@ -256,6 +256,7 @@ class GeminiTransport(Star):
                     scrub_brand=bool(profile.get("scrub_brand", False)),
                     slim_system=bool(profile.get("slim_system", False)),
                     neutralize_factory=bool(profile.get("neutralize_factory", True)),
+                    localize_tool_text=bool(profile.get("prompt_zh_tools", True)),
                     localizer=localizer,
                     tool_whitelist=profile.get("tool_whitelist") or [],
                     dump_dir=out_dir,
@@ -414,7 +415,7 @@ class GeminiTransport(Star):
             if key not in data or data[key] is None:
                 data[key] = default
         for key in PROMPT_BOOL_KEYS:
-            data.setdefault(key, key == "prompt_zh_enabled")
+            data.setdefault(key, key in ("prompt_zh_enabled", "prompt_zh_tools", "prompt_zh_extra"))
         return json_response({"success": True, "config": data})
 
     async def api_save_config(self):
@@ -459,6 +460,8 @@ class GeminiTransport(Star):
                         "flatten_mode": bool(rule.get("flatten_mode", False)),
                         "slim_system": bool(rule.get("slim_system", False)),
                         "neutralize_factory": bool(rule.get("neutralize_factory", True)),
+                        "prompt_zh_tools": bool(rule.get("prompt_zh_tools", True)),
+                        "prompt_zh_extra": bool(rule.get("prompt_zh_extra", True)),
                         "drop_tools": bool(rule.get("drop_tools", False)),
                         "scrub_brand": bool(rule.get("scrub_brand", False)),
                         "custom_headers": rule.get("custom_headers") or "{}",

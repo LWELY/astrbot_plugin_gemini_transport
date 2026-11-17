@@ -116,7 +116,7 @@ def _neutralize_factory(body, localizer=None):
         if not isinstance(items, list):
             continue
         for item in items:
-            if not isinstance(item, dict) or item.get("role") != "system":
+            if not isinstance(item, dict) or item.get("role") not in {"system", "developer", "user"}:
                 continue
             content = item.get("content")
             if isinstance(content, str):
@@ -131,6 +131,110 @@ def _neutralize_factory(body, localizer=None):
                         if did:
                             part["text"] = new_text
                             changed = True
+    return changed
+
+
+# 工具定义里的英文枚举短语。上游过滤不只看系统提示，tools 数组也一起扫，
+# 所以这里要把工具描述里的同类短语一并换成中文；工具名、参数名、枚举值一个字不动。
+_TOOL_TEXT_RULES = (
+    (
+        re.compile(
+            r"Maximum wait in milliseconds for output or exit on poll,\s*write,\s*write_line,"
+            r"\s*or interrupt\s*\(up to 5 minutes\)\.?\s*"
+            r"(Writes send input before waiting\.?\s*)?"
+            r"(Output or exit may return early;\s*this does not stop the process\.?)?",
+            re.I,
+        ),
+        "轮询、写入、写入整行或中断时等待输出或退出的最大毫秒数（最多5分钟）。写入在等待前发送输入；输出或提前退出不会终止进程。",
+    ),
+    (
+        re.compile(
+            r"Manage native shell sessions on this machine:\s*"
+            r"list,\s*poll,\s*write raw text or complete lines to,\s*interrupt,\s*or terminate sessions\.?",
+            re.I,
+        ),
+        "管理本机 shell 会话：列出、轮询、写入原始文本或整行，以及中断或终止会话。",
+    ),
+    (
+        re.compile(
+            r"Maximum output bytes returned by poll,\s*write,\s*write_line,"
+            r"\s*interrupt,\s*or terminate\.",
+            re.I,
+        ),
+        "轮询、写入、写入整行、中断或终止时返回的最大输出字节数。",
+    ),
+    (
+        re.compile(
+            r"Sessions are isolated to the current conversation and sender\.?"
+            r"\s*(Administrators can manage all sessions in the conversation\.?)?",
+            re.I,
+        ),
+        "会话按当前对话与发送者隔离；管理员可管理对话内的全部会话。",
+    ),
+    (
+        re.compile(
+            r"List,\s*poll,\s*write raw text or complete lines to,\s*"
+            r"interrupt,\s*or terminate\s*managed shell sessions\.?",
+            re.I,
+        ),
+        "管理本机 shell 会话：列出、轮询、写入原始文本或整行，以及中断或终止会话。",
+    ),
+    (
+        re.compile(r"poll,\s*write,\s*write_line,\s*interrupt,\s*or terminate", re.I),
+        "轮询、写入、写入整行、中断或终止",
+    ),
+    (
+        re.compile(
+            r"list,\s*poll,\s*write raw text or complete lines to,\s*"
+            r"interrupt,\s*or terminate",
+            re.I,
+        ),
+        "列出、轮询、写入原始文本或整行、中断或终止",
+    ),
+    (
+        re.compile(r"interrupt,\s*or terminate", re.I),
+        "中断或终止",
+    ),
+)
+
+
+def _localize_tool_text(text):
+    """把一段工具描述里的英文触发短语换成中文。"""
+    if not isinstance(text, str) or not text:
+        return text, False
+    out = text
+    for rx, rep in _TOOL_TEXT_RULES:
+        out = rx.sub(rep, out)
+    return out, out != text
+
+
+def _localize_tools(body):
+    """就地中文化 tools 数组里的描述文本，返回是否有改动。"""
+    tools = body.get("tools")
+    if not isinstance(tools, list):
+        return False
+    changed = False
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        node = tool.get("function") if isinstance(tool.get("function"), dict) else tool
+        if not isinstance(node, dict):
+            continue
+        new_text, did = _localize_tool_text(node.get("description"))
+        if did:
+            node["description"] = new_text
+            changed = True
+        params = node.get("parameters")
+        if isinstance(params, dict):
+            props = params.get("properties")
+            if isinstance(props, dict):
+                for prop in props.values():
+                    if not isinstance(prop, dict):
+                        continue
+                    new_text, did = _localize_tool_text(prop.get("description"))
+                    if did:
+                        prop["description"] = new_text
+                        changed = True
     return changed
 
 
@@ -552,6 +656,7 @@ def normalize_request(
     scrub_brand=False,
     slim_system=True,
     neutralize_factory=True,
+    localize_tool_text=True,
     localizer=None,
     tool_whitelist=None,
     dump_dir=None,
@@ -612,6 +717,8 @@ def normalize_request(
     if prefix and _rewrite_system_prompt(body, prefix):
         dirty = True
     if neutralize_factory and _neutralize_factory(body, localizer):
+        dirty = True
+    if localize_tool_text and _localize_tools(body):
         dirty = True
     if slim_system and _slim_body(body):
         dirty = True

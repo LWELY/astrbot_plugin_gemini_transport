@@ -152,6 +152,16 @@
     "description": "出厂英文提示词中文化总开关。上游过滤那句英文枚举，中文版不触发，假 429 消失",
     "default": true
   },
+  "prompt_zh_tools": {
+    "type": "bool",
+    "description": "工具定义里的英文枚举短语也换成中文。上游过滤连 tools 数组一起扫，关掉会重新触发假 429",
+    "default": true
+  },
+  "prompt_zh_extra": {
+    "type": "bool",
+    "description": "其余出厂英文段落也中文化：实时语音、安全模式、定时/后台唤醒、搜索引用、动图说明、网络策略、工作区附加提示、Neo 与 CUA、群聊上下文、MiMo 语音转写",
+    "default": true
+  },
   "prompt_zh_all_providers": {
     "type": "bool",
     "description": "对所有提供商生效。默认只改 source_ids 指定的源",
