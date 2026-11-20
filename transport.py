@@ -413,22 +413,104 @@ def _restore_names(text, mapping):
     return json.dumps(value, ensure_ascii=False)
 
 
+# 技能样板段的起点：英文出厂标头与中文汉化标头都认。
+_SLIM_START_MARKERS = (
+    "## Skills",
+    "# Skills",
+    "## 技能",
+    "## 技能包",
+)
+
+# 样板段内部会出现的标题，扫到这些就继续往里走，不当成段落结束。
+_SLIM_SKIP_HEADINGS = {
+    "skills",
+    "技能",
+    "技能包",
+    "available skills",
+    "可用技能",
+    "skill rules",
+    "技能规则",
+    "tools",
+    "工具",
+    "可用工具",
+    "available tools",
+    "tool rules",
+    "工具规则",
+    "local computer tools",
+    "本地计算机工具",
+    "environment",
+    "环境",
+    "runtime",
+    "运行时",
+}
+
+# 样板段没有后续标题时，用这些收尾句判断到底剪到哪。
+_SLIM_TAIL_SENTINELS = (
+    "普通长命令不要自行添加 &、nohup 或其他分离包装。",
+    "普通长命令不要自行添加",
+    "优先使用工作区内的相对路径；不要假定其他工具也如此。",
+    "不要假定其他工具也如此",
+    "do not assume this behavior for other tools.",
+    "do not add `&`, `nohup`, or another detachment wrapper",
+    "follow the tool schema exactly",
+    "keep the conversation style consistent",
+    "Prefer `astrbot_*` tools when running skill scripts.",
+)
+
+# 框架给系统提示词套的壳子，只删标题这一行，正文一个字不动。
+_PERSONA_SHELL_RE = re.compile(r"\A\s*#\s*Persona Instructions[ \t]*\n+", re.I)
+
+
 def _slim_system(text):
     """把框架样板从系统提示词里剪掉，只留下人格和世界书。
 
-    中间那段 "## Skills" 到 "## 常驻" 之间全是框架的东西：技能清单、
-    绝对路径、技能规则、本地执行说明，一看就是 agent 框架。
+    不写死中英文：起点认 "## Skills" / "## 技能"，终点认样板段之后的第一个
+    非样板标题（比如世界书的 "## 常驻"、"## 世界书"）；万一后面没标题，
+    再按样板收尾句剪。剪完只剩空壳就原样返回，绝不把人格清空。
     """
     if not isinstance(text, str) or not text:
         return text, False
-    start = text.find("## Skills")
+    original = text
+
+    text = _PERSONA_SHELL_RE.sub("", text, count=1)
+
+    start = -1
+    for mark in _SLIM_START_MARKERS:
+        pos = text.find(mark)
+        if pos >= 0 and (start < 0 or pos < start):
+            start = pos
     if start < 0:
-        return text, False
-    later = text.find("## 常驻", start)
-    end = later if later > 0 else len(text)
-    trimmed = (text[:start] + text[end:]).rstrip() + "\n"
+        trimmed = text.strip()
+        if trimmed == original.strip():
+            return original, False
+        return trimmed + "\n", True
+
+    end = len(text)
+    for match in re.finditer(r"(?m)^#{1,4}[ \t]*(.+?)[ \t]*#*[ \t]*$", text):
+        if match.start() <= start:
+            continue
+        title = match.group(1).strip().strip("#").strip().lower()
+        if title in _SLIM_SKIP_HEADINGS:
+            continue
+        end = match.start()
+        break
+    else:
+        tail_start = start
+        best = -1
+        for sentinel in _SLIM_TAIL_SENTINELS:
+            pos = text.find(sentinel, tail_start)
+            if pos >= 0:
+                best = max(best, pos + len(sentinel))
+        if best > 0:
+            end = best
+
+    trimmed = (text[:start] + text[end:]).strip()
     trimmed = re.sub(r"\n{3,}", "\n\n", trimmed)
-    return trimmed, True
+    if not trimmed:
+        return original, False
+    if trimmed == original.strip():
+        return original, False
+    return trimmed + "\n", True
 
 
 def _slim_body(body):

@@ -51,7 +51,7 @@ from .transport import (
     "astrbot_plugin_gemini_transport",
     "苏九儿",
     "Gemini 等多模型请求转换：提示词中文化、请求头清洗，不拍平正文",
-    "v0.12.1",
+    "v0.13.0",
 )
 class GeminiTransport(Star):
     def __init__(self, context: Context, config=None):

@@ -135,7 +135,7 @@
           },
           "slim_system": {
             "type": "bool",
-            "description": "把系统提示词里的框架样板剪掉，只留人格和世界书",
+            "description": "自动识别中英文标头（## 技能 / ## Skills），剪掉技能清单与沙盒样板，只留人格与世界书",
             "default": false
           }
         }
@@ -149,7 +149,7 @@
   },
   "slim_system": {
     "type": "bool",
-    "description": "把系统提示词里的框架样板剪掉，只留人格和世界书",
+    "description": "自动识别中英文标头（## 技能 / ## Skills），剪掉技能清单与沙盒样板，只留人格与世界书",
     "default": false
   },
   "prompt_zh_enabled": {
