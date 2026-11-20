@@ -384,7 +384,7 @@ function defaultCard() {
   s2.appendChild(el('div', 'sect-t', '匹配'));
   const g2 = el('div', 'grid');
   g2.appendChild(field('生效的源', textInput((draft.source_ids || []).join(', '),
-    (v) => { draft.source_ids = splitList(v); }, '反重力哈基米'), '按源名匹配，逗号分隔。', true));
+    (v) => { draft.source_ids = splitList(v); }, '反重力哈基米'), '按源名匹配，逗号分隔。只有上面的「对所有 gemini 生效」关掉时，这一行才管用。', true));
   g2.appendChild(field('模型前缀（写法：gemini-*）', textInput('gemini-*',
     () => {}, 'gemini-*'),
     '不能只写 gemini，要写 gemini-* 才算通配；星号代表后面任意字符，比如 gemini-*-flash、gemini-*pro* 都行。这一张固定只吃 gemini- 开头。', true));
@@ -393,6 +393,8 @@ function defaultCard() {
 
   const s3 = el('div', 'sect');
   s3.appendChild(el('div', 'sect-t', '开关'));
+  s3.appendChild(toggle(draft.all_gemini_default !== false, (v) => { draft.all_gemini_default = v; },
+    '对所有 gemini 生效', '默认开：不看供应商，只要模型名里带 gemini 就套这套转换。关掉才改回上面那个白名单。'));
   s3.appendChild(toggle(draft.prompt_zh_enabled !== false, (v) => { draft.prompt_zh_enabled = v; },
     '中文化总开关', '关掉就原样放行英文提示词，上游可能又开始甩假 429。'));
   s3.appendChild(toggle(!!draft.prompt_zh_all_providers, (v) => { draft.prompt_zh_all_providers = v; },
@@ -475,6 +477,17 @@ function ruleCard(rule, index) {
     rule.prompts[k] = v;
   }, '留空沿用 Gemini 默认提示词。'));
   body.appendChild(s2);
+
+  const s2b = el('div', 'sect');
+  s2b.appendChild(el('div', 'sect-t', '系统前缀（破甲）'));
+  const g2b = el('div', 'grid');
+  const prefixArea = autoGrow(textArea(rule.rewrite_system_prefix || '', (v) => {
+    rule.rewrite_system_prefix = v;
+  }, 8));
+  g2b.appendChild(field('加在系统提示词最前面', prefixArea,
+    '整段丢进去就生效，填 off 等于关掉。文字框会自己长高，改完点下面保存。', true));
+  s2b.appendChild(g2b);
+  body.appendChild(s2b);
 
   const s3 = el('div', 'sect');
   s3.appendChild(el('div', 'sect-t', '开关'));
