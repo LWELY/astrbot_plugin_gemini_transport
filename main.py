@@ -2,6 +2,7 @@
 import asyncio
 import json
 import pathlib
+import tempfile
 import time
 
 from astrbot.api import logger
@@ -50,7 +51,7 @@ from .transport import (
     "astrbot_plugin_gemini_transport",
     "苏九儿",
     "Gemini 等多模型请求转换：提示词中文化、请求头清洗，不拍平正文",
-    "v0.11.6",
+    "v0.12.1",
 )
 class GeminiTransport(Star):
     def __init__(self, context: Context, config=None):
@@ -132,14 +133,22 @@ class GeminiTransport(Star):
         return "" if value.strip().lower() in {"", "off", "false", "none"} else value
 
     def _write_state(self, report):
-        """把当前挂载状态写到插件目录，方便不看日志也能确认钩子挂没挂上。"""
-        try:
-            path = pathlib.Path(__file__).with_name("attach_state.json")
-            path.write_text(
-                json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8"
-            )
-        except Exception:  # noqa: BLE001
-            pass
+        """把当前挂载状态写到插件目录，方便不看日志也能确认钩子挂没挂上。
+
+        Linux 容器里插件目录常常只读，写不进去就退到系统临时目录，
+        免得整个钩子因为落盘失败被拖死。
+        """
+        text = json.dumps(report, ensure_ascii=False, indent=1)
+        for path in self._state_candidates():
+            try:
+                path.write_text(text, encoding="utf-8")
+                return
+            except Exception:  # noqa: BLE001
+                continue
+
+    def _state_candidates(self):
+        here = pathlib.Path(__file__).with_name("attach_state.json")
+        return [here, pathlib.Path(tempfile.gettempdir()) / "astrbot_gemini_transport_state.json"]
 
     def _route_slugs(self):
         """面板按插件自己的名字拼路由，这里不能写死。
@@ -389,8 +398,12 @@ class GeminiTransport(Star):
         missing = sorted(x for x in wanted if x and x not in known)
 
         report = {}
-        report_file = pathlib.Path(__file__).with_name("attach_state.json")
-        if report_file.exists():
+        report_file = None
+        for path in self._state_candidates():
+            if path.exists():
+                report_file = path
+                break
+        if report_file is not None:
             try:
                 report = json.loads(report_file.read_text("utf-8"))
             except Exception:  # noqa: BLE001
@@ -416,6 +429,8 @@ class GeminiTransport(Star):
                 data[key] = default
         for key in PROMPT_BOOL_KEYS:
             data.setdefault(key, key in ("prompt_zh_enabled", "prompt_zh_tools", "prompt_zh_extra"))
+        # 总闸默认开：老配置里没这一项时，面板要显示成开着的。
+        data.setdefault("all_gemini_default", True)
         return json_response({"success": True, "config": data})
 
     async def api_save_config(self):
@@ -482,6 +497,8 @@ class GeminiTransport(Star):
                     payload[key] = bool(payload[key])
             if "source_ids" in payload and not isinstance(payload["source_ids"], list):
                 raise ValueError("默认规则的源 ID 必须是列表")
+            if "all_gemini_default" in payload:
+                payload["all_gemini_default"] = bool(payload["all_gemini_default"])
             self.settings.update(payload)
             saver = getattr(self.settings, "save_config", None)
             if callable(saver):

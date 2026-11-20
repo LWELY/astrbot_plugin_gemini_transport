@@ -1,7 +1,8 @@
 # 哈基咪等模型假报错转换 (astrbot_plugin_gemini_transport)
 
-版本：`v0.11.6`  
+版本：`v0.12.1`  
 作者：苏九儿  
+仓库：https://github.com/LWELY/astrbot_plugin_gemini_transport  
 致谢：合并参考了 astrbot_plugin_prompt_override 的出厂词中文化思路。
 
 ---
@@ -68,7 +69,8 @@
 ```
 
 - **`enabled`** (`bool`): 插件总开关。
-- **`source_ids`** (`list`): 生效的供应商源 ID 白名单，默认 `["反重力哈基米"]`。
+- **`all_gemini_default`** (`bool`): **默认 `true`**。总闸开着就不看供应商，只要模型名里带 gemini 就套这整套转换；关掉才退回 `source_ids` 白名单。
+- **`source_ids`** (`list`): 白名单，仅在 `all_gemini_default` 关闭时生效，默认 `["反重力哈基米"]`。
 - **`prompt_zh_enabled`** (`bool`): 出厂英文提示词中文化总开关，默认 `true`。
 - **`prompt_zh_all_providers`** (`bool`): 是否对所有提供商生效（默认 `false`，仅白名单生效）。
 - **`flatten_mode`** (`bool`): **严禁开启（默认 `false`）**。开启会强行拍平多模态消息，导致图片报错。
@@ -102,11 +104,15 @@
 |---|---|
 | Windows + powershell.exe | 说明是 Windows PowerShell 5.1，别用 PS7 语法，别假定有 cat/ls/grep |
 | Windows + pwsh.exe | 说明是 PowerShell 7，别假定有完整 Unix 用户态 |
-| Linux / macOS | 说明是 Unix 系，用 POSIX 兼容命令 |
+| Linux / macOS | 说明是 Unix 系，用 POSIX 兼容命令，路径用 `/`，文件名区分大小写 |
 
 `prompt_zh_shell` 填 `auto`（默认）就走上面这套；想自己写就填文本，支持 `{os}` 与 `{shell_hint}` 两个占位符。模型看到的运行环境描述永远和真实机器一致，不会在 Linux 上告诉模型自己在用 PowerShell。
 
-代码层面没有 Windows 专属调用：路径用 `pathlib`，写盘用 `os.replace`，没有注册表、没有 `startfile`、没有写死的盘符。
+代码层面没有 Windows 专属调用：路径用 `pathlib`，写盘统一 `encoding="utf-8"`，没有注册表、没有 `startfile`、没有写死的盘符。
+
+Linux 上还有一处专门的退让：容器里插件目录经常是只读的，状态文件 `attach_state.json` 与转储 `last_request.json`、`last_error.json` 写不进去时，会自动改写到系统临时目录（`tempfile.gettempdir()`），钩子不会因为落盘失败而整个失效。
+
+> Linux 备注：`auto` 只按 `platform.system()` 和 `pwsh` 是否存在来判断，遇到容器、WSL、Windows 上跑 Git Bash 这类混着来的环境，可能跟真实 shell 对不上。真发现模型拿错环境说话，就让 bot 自己读一遍当前环境（`uname -a`、`$SHELL`、`which pwsh`），把 `prompt_zh_shell` 从 `auto` 改成实测出来的那段文本，或者写成带 `{os}`、`{shell_hint}` 的短句，别硬撑着用 auto。
 
 ## 四、排查与调试
 
@@ -119,6 +125,14 @@
 
 ## 五、版本历史
 
+- **v0.12.1 (2026-11-20)**：
+  - `metadata.yaml` 补上仓库地址，市场与更新检查不会再因为缺 repo 失效；
+  - 适配 Linux：插件目录只读时，状态与转储文件自动退到系统临时目录；
+  - Unix 系 shell 提示词补上路径分隔符与大小写说明。
+- **v0.12.0 (2026-11-20)**：
+  - 新增总闸 `all_gemini_default`，默认开：不再按供应商源卡人，只要模型名里带 gemini 就整套生效；
+  - 关掉总闸才退回老规矩，只认 `source_ids` 白名单里的 gemini 模型；
+  - 面板「开关」区加同名开关，「生效的源」提示改成只在关闸时才管用。
 - **v0.11.6 (2026-11-16)**：
   - 插件显示名改成「哈基咪等模型假报错转换」，控制台标题同步。
 - **v0.11.5 (2026-11-16)**：

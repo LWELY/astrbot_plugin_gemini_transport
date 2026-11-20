@@ -539,11 +539,18 @@ def _redact(value, depth=0):
 
 
 def _dump(path, payload):
+    text = json.dumps(_redact(payload), ensure_ascii=False, indent=1)
     try:
-        Path(path).write_text(
-            json.dumps(_redact(payload), ensure_ascii=False, indent=1),
-            encoding="utf-8",
-        )
+        Path(path).write_text(text, encoding="utf-8")
+        return
+    except Exception:  # noqa: BLE001
+        pass
+    # 插件目录只读（Linux 容器常见）时退到临时目录，别让转储把请求拖垮。
+    try:
+        import tempfile
+
+        fallback = Path(tempfile.gettempdir()) / ("gemini_transport_" + Path(path).name)
+        fallback.write_text(text, encoding="utf-8")
     except Exception:  # noqa: BLE001
         pass
 

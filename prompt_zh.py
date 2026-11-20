@@ -108,7 +108,10 @@ def _resolve_shell_kind():
 
 def shell_hint_cn(kind):
     if kind == "unix":
-        return "运行时 shell 是 Unix 系，使用 POSIX 兼容命令。"
+        return (
+            "运行时 shell 是 Unix 系，使用 POSIX 兼容命令。"
+            "路径一律用 / 分隔，不要写成 Windows 反斜杠；文件名区分大小写。"
+        )
     if kind == "pwsh":
         return (
             "运行时 shell 是 PowerShell 7（pwsh.exe）。"

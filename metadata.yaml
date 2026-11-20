@@ -2,7 +2,8 @@ name: astrbot_plugin_gemini_transport
 display_name: 哈基咪等模型假报错转换
 desc: 主攻 Gemini：出厂英文提示词改写成等义中文，绕开中转站假 429，顺带清洗指纹头；按模型分卡，每张卡能单独改提示词。不拍平正文，多模态与全部工具照常。
 author: 苏九儿
-version: v0.11.7
+version: v0.12.1
+repo: https://github.com/LWELY/astrbot_plugin_gemini_transport
 pages:
   - name: dashboard
     title: 转换控制台

@@ -38,9 +38,16 @@ def select_profile(settings, cfg):
         if any(fnmatch.fnmatchcase(str(cfg.get("model", "")), pat) for pat in patterns):
             return dict(rule)
     if settings.get("legacy_enabled", True):
-        sources = set(settings.get("source_ids", ["反重力哈基米"]))
-        if (cfg.get("id") in sources or cfg.get("provider_source_id") in sources) and str(cfg.get("model", "")).startswith("gemini-"):
-            return dict(settings)
+        model = str(cfg.get("model", ""))
+        # 总闸默认是开的：不分供应商，只要是 gemini 系列就生效。
+        if settings.get("all_gemini_default", True):
+            if "gemini" in model.lower():
+                return dict(settings)
+        else:
+            # 关掉总闸才退回老规矩：只认 source_ids 点名的源，且模型仍须 gemini- 开头。
+            sources = set(settings.get("source_ids", ["反重力哈基米"]))
+            if (cfg.get("id") in sources or cfg.get("provider_source_id") in sources) and model.startswith("gemini-"):
+                return dict(settings)
     return None
 
 

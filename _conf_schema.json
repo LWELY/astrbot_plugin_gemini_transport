@@ -4,9 +4,14 @@
     "description": "仅启用指定源的HTTP头与提示词首句适配",
     "default": true
   },
+  "all_gemini_default": {
+    "type": "bool",
+    "description": "对所有 gemini 模型生效（默认开启）。关掉后只认 source_ids 白名单里的 gemini 模型",
+    "default": true
+  },
   "source_ids": {
     "type": "list",
-    "description": "精确供应商源ID白名单，仅gemini-模型生效",
+    "description": "白名单：仅在上面那个总闸关闭时启用，精确供应商源ID，只对 gemini 系列生效",
     "default": [
       "反重力哈基米"
     ]
